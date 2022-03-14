@@ -7,6 +7,8 @@ function build_rclm
 
 
 addpath('share')
+addpath('share/class')
+addpath('share/utilities')
 package_name;
 files = dir;
 dirFlags = [files.isdir];
@@ -25,7 +27,7 @@ for package = packages
         fprintf('Package %s does not exist in this directory.\n',package{:})
     end
 end
-save('share/packages.mat',"package_name_installed");
+save('share/info/packages.mat',"package_name_installed");
 savepath
 ros2genmsg([pwd '/custom_interface']);
 end
