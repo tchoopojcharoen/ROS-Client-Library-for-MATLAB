@@ -44,7 +44,7 @@ classdef TurtlesimController < rclm_node
             %    See also DELETE
             obj@rclm_node('turtlesim_controller');
             obj.create_publisher("geometry_msgs/Twist","cmd_vel",10);
-            sub = obj.create_subscription("turltlesim/Pose","pose",@obj.pose_callback,10);
+            sub = obj.create_subscription("turtlesim/Pose","pose",@obj.pose_callback,10);
             obj.Pose = ros2message(sub);
             obj.create_timer(obj.period,@obj.timer_callback);
             obj.create_service("turtlesim_control/SetGoal","/set_goal",@obj.set_goal_callback);

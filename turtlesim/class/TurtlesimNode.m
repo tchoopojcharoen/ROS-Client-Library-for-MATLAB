@@ -52,7 +52,7 @@ classdef TurtlesimNode < rclm_node
             %
             %    See also DELETE
             obj@rclm_node('turtlesim_node');
-            obj.create_publisher("turltlesim/Pose","pose",10);
+            obj.create_publisher("turtlesim/Pose","pose",10);
             sub_cmd_vel = obj.create_subscription("geometry_msgs/Twist","cmd_vel",@obj.cmd_vel_callback,10);
             obj.Message_cmd_vel = ros2message(sub_cmd_vel);
             obj.create_timer(obj.period,@obj.timer_callback);
