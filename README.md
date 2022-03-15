@@ -2,7 +2,7 @@
 
 by Pi Thanacha Choopojcharoen
 
-[![Watch the video](https://j.gifs.com/EqXP3K.gif)](https://www.youtube.com/Uf1rghUfZ-Y)
+[![Watch the video](https://j.gifs.com/EqXP3K.gif)](https://www.youtube.com/watch?v=Uf1rghUfZ-Y)
 
 ## Description:
 
