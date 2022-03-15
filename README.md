@@ -7,7 +7,8 @@ RCLM is a wrapper library that converts the functionalities of basic MATLAB (suc
 
 One neat addition to the library is All-in-MATLAB & All-in-Simulink turtlesim simulator along with an already written controller node both in MATLAB and Simulink.
 
-![image](https://user-images.githubusercontent.com/3856640/158456971-91e1d611-1875-43b9-b57b-badc57663d40.png)
+![image](https://user-images.githubusercontent.com/3856640/158460229-d10458eb-5250-4ea5-a86c-1e873eb77337.png)
+
 
 The users are assumed to have some experience with ROS2 and MATLAB's ROS Toolbox. This repository has only been tested with MATLAB R2022a on Ubuntu 20.04.
 
