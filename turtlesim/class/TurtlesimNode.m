@@ -2,7 +2,7 @@ classdef TurtlesimNode < rclm_node
     %TURTLESIMNODE This is a stripped-down version of ROS Turtlesim
     % Object Properties and Methods.
     %
-    % Node properties.
+    % TurtlesimNode properties.
     %   Publisher_pose                  - Publisher for /pose
     %   Subscriber_cmd_vel              - Subscriber for /cmd_vel
     %   Service_clear                   - Service server for /clear
@@ -55,14 +55,14 @@ classdef TurtlesimNode < rclm_node
             obj.create_publisher("turtlesim/Pose","pose",10);
             sub_cmd_vel = obj.create_subscription("geometry_msgs/Twist","cmd_vel",@obj.cmd_vel_callback,10);
             obj.Message_cmd_vel = ros2message(sub_cmd_vel);
-            obj.create_timer(obj.period,@obj.timer_callback);
+            t = obj.create_timer(obj.period,@obj.timer_callback);
             obj.create_service("std_srvs/Empty","/clear",@obj.srv_callback);
             obj.Pose = obj.initial_pose;
             obj.set_figure();
             obj.set_axes();
             obj.load_turtle();
             obj.plot_turtle(obj.Pose);
-            obj.start_timer();
+            t.start;
         end
         function delete(obj)
             %DELETE deconstructs this TurtlesimNode
