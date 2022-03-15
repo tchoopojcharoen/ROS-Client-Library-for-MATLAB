@@ -6,9 +6,12 @@ function build_rclm
 %   M_CREATE_PKG (document available only after setup)
 
 
+file_path = mfilename('fullpath');
+addpath(file_path(1:end-length('build_rclm')))
 addpath('share')
 addpath('share/class')
 addpath('share/utilities')
+addpath('share/example')
 package_name;
 files = dir;
 dirFlags = [files.isdir];
