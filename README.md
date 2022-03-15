@@ -2,6 +2,7 @@
 
 by Pi Thanacha Choopojcharoen
 
+(Click on the GIF to watch the entire video)
 [![Watch the video](https://j.gifs.com/EqXP3K.gif)](https://www.youtube.com/watch?v=Uf1rghUfZ-Y)
 
 ## Description:
