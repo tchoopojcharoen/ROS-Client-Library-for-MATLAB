@@ -23,7 +23,8 @@ end
 rmpath(share_path);
 rmpath([share_path 'class']);
 rmpath([share_path 'utilities']);
-
+rmpath([share_path 'example']);
+rmpath(setup_path);
 end
 
 
