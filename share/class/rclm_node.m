@@ -14,18 +14,29 @@ classdef rclm_node < handle
     % rclm_node object construction:
     %   @rclm_node/rclm_node    - Construct node object.
     %
-    % General:
+    % Creation:
     %   create_publisher        - Create a publisher with the node.
     %   create_subscription     - Create a subscriber with the node.
     %   create_timer            - Create a timer for the node.
     %   create_service          - Create a service server of the node.
-    %   create_client           - Create a service client of the node
-    %   create_guard_condition  - Create a guard condition og the node
-    %   delete                  - Delete the node from the memory.
+    %   create_client           - Create a service client of the node.
+    %   create_guard_condition  - Create a guard condition of the node.
+    %   create_rate             - Create a rate object of the node.
     %
-    % Execution:
-    %   start_timer             - Start timer of the node
-    %   stop_timer              - Stop timer of the node
+    % General:
+    %   count_publishers        - Count number of publishers based on a topic
+    %   count_subscribers       - Count number of subscribers based on a topic
+    %
+    % Deconstruction:
+    %   delete                  - Delete the node from the memory.
+    %   destroy_publisher       - Deconstructs a given publisher
+    %   destroy_subscription    - Deconstructs a given subscriber
+    %   destroy_timer           - Deconstructs a given timer
+    %   destroy_service         - Deconstructs a given service
+    %   destroy_client          - Deconstructs a given client
+    %   destroy_guard_condition - Deconstructs a given guard condition
+    %   destroy_rate            - Deconstructs a given rate
+    %   
 
     % Copyright 2022 Pi Thanacha Choopojcharoen (GPL 2.0)
     properties (SetAccess=protected)
@@ -35,11 +46,13 @@ classdef rclm_node < handle
         Service_clients = {}
         %Action_servers = 'to be implemented'
         %Action_clients = 'to be implemented'
+        Timers = {}
         Guards = {}
+        Rates = {}
+
     end
     properties (SetAccess=private)
         Name
-        Timer
     end
     properties(Access=private)
         ThisNode
@@ -59,7 +72,6 @@ classdef rclm_node < handle
             obj.Name = name;
             obj.ThisNode = ros2node(name);
         end
-
         function pub = create_publisher(obj,message_type,topic_name,qos_profile)
             %CREATE_PUBLISHER creates a publisher for the node
             %   PUB = CREATE_PUBLISHER(OBJ,TYPE,NAME,QOS) returns a
@@ -73,8 +85,8 @@ classdef rclm_node < handle
             %
             %       node_talker = rclm_node('/talker');
             %       pub = node_talker.create_publisher("geometry_msgs/Twist","/cmd_vel",10)
-            %       node_talker.create_timer(0.5,@(obj,event)timer_callback(obj,event,pub));
-            %       node_talker.start_timer();
+            %       t = node_talker.create_timer(0.5,@(obj,event)timer_callback(obj,event,pub));
+            %       t.start;
             %
             %       function timer_callback(obj, event, pub)
             %           msg = ros2message("geometry_msgs/Twist");
@@ -86,6 +98,35 @@ classdef rclm_node < handle
             pub = ros2publisher(obj.ThisNode,topic_name,message_type,"Depth",qos_profile);
             obj.Publishers{end+1} = pub;
         end
+        function num = count_publishers(obj,topic_name)
+            %COUNT_PUBLISHERS counts the number of publishers that publish
+            %to the given topic
+            %   NUM = COUNT_PUBLISHERS(OBJ,NAME) returns the number of
+            %   publishers NUM that publish to a topic with the given name
+            %   NAME.
+            %
+            %   Example:
+            %       % Create a publisher for the node /talker
+            %       % which publish to a topic /cmd_vel and QOS depth of 10.
+            %       % The message type is geometry_msgs/Twist
+            %
+            %       node_talker = rclm_node('/talker');
+            %       pub = node_talker.create_publisher("geometry_msgs/Twist","/cmd_vel",10)
+            %       num = node_talker.count_publishers("/cmd_vel")
+            %       num = node_talker.count_publishers("/pose")
+            %       
+            %   See also CREATE_PUBLISHER, CREATE_SUBSCRIPTION, COUNT_SUBSCRIBERS
+            num = 0;
+            name = char(topic_name);
+            if name(1) ~= '/'
+                name = ['/' char(topic_name)];
+            end
+            for pub = obj.Publishers{:}
+                if strcmp(pub.TopicName,name)
+                    num = num + 1;
+                end
+            end
+        end
         function sub = create_subscription(obj,message_type,topic_name,callback,qos_profile)
             %CREATE_SUBSCRIPTION creates a subscriber for the node
             %   SUB = CREATE_SUBSCRIPTION(OBJ,TYPE,NAME,CALLBACK,QOS)
@@ -94,18 +135,13 @@ classdef rclm_node < handle
             %   , and the subscriber has QOS depth of QOS.
             %
             %   Example:
-            %       % Create a subscriber for the node /caller
-            %       % which subscribe to a topic /cmd_vel and QOS depth of 10.
-            %       % The message type is geometry_msgs/Twist. Every time
-            %       the message is sent, the subscriber will display its
-            %       x-component.
             %
             %       node_talker = rclm_node('/talker');
             %       pub = node_talker.create_publisher("geometry_msgs/Twist","/cmd_vel",10);
-            %       node_talker.create_timer(0.5,@(obj,event)timer_callback(obj,event,pub));
+            %       t = node_talker.create_timer(0.5,@(obj,event)timer_callback(obj,event,pub));
             %       node_caller = rclm_node('/caller');
             %       sub = node_caller.create_subscription("geometry_msgs/Twist","/cmd_vel",@sub_callback,10);
-            %       node_talker.start_timer();
+            %       t.start;
             %
             %       function timer_callback(obj, event, pub)
             %           msg = ros2message("geometry_msgs/Twist");
@@ -121,11 +157,37 @@ classdef rclm_node < handle
             sub = ros2subscriber(obj.ThisNode,topic_name,message_type,callback,"Depth",qos_profile);
             obj.Subscribers{end+1} = sub;
         end
-        function create_timer(obj,period,callback)
+        function num = count_subscribers(obj,topic_name)
+            %COUNT_SUBSCRIBERS counts the number of subscribers that
+            %subscribe to the given topic
+            %   NUM = COUNT_SUBSCRIBERS(OBJ,NAME) returns the number of
+            %   subscribers NUM that subscribe to a topic with the given name
+            %   NAME.
+            %
+            %   Example:
+            %
+            %       node_listener = rclm_node('/listener');
+            %       pub = node_talker.create_subscriber("std_msgs/Float64","/value",@(msg)disp(msg.data),10)
+            %       num = node_talker.count_publishers("/value")
+            %       num = node_talker.count_publishers("/word")
+            %       
+            %   See also CREATE_PUBLISHER, COUNT_PUBLISHERS, CREATE_SUBSCRIPTION
+            num = 0;
+            name = char(topic_name);
+            if name(1) ~= '/'
+                name = ['/' char(topic_name)];
+            end
+            for pub = obj.Subscribers{:}
+                if strcmp(pub.TopicName,name)
+                    num = num + 1;
+                end
+            end
+        end
+        function t = create_timer(obj,period,callback)
             %CREATE_TIMER creates a timer for the node
-            %   CREATE_TIMER(OBJ,PERIOD,CALLBACK) attaches a timer that
-            %   executea the callback CALLBACK every period PERIOD after
-            %   the node starts its timer.
+            %   T = CREATE_TIMER(OBJ,PERIOD,CALLBACK) attaches a timer T 
+            %   that executes the callback CALLBACK every period PERIOD 
+            %   after the node starts its timer.
             %
             %   Example:
             %       % Create a timer for a node /talker that
@@ -135,8 +197,8 @@ classdef rclm_node < handle
             %
             %       node_talker = rclm_node('/talker');
             %       pub = node_talker.create_publisher("geometry_msgs/Twist","/cmd_vel",10);
-            %       node_talker.create_timer(0.5,@(obj,event)timer_callback(obj,event,pub));
-            %       nnode_talker.start_timer();
+            %       t = node_talker.create_timer(0.5,@(obj,event)timer_callback(obj,event,pub));
+            %       t.start;
             %
             %       function timer_callback(obj, event, pub)
             %           msg = ros2message("geometry_msgs/Twist");
@@ -145,7 +207,25 @@ classdef rclm_node < handle
             %       end
             %
             %   See also RCLM_NODE, CREATE_PUBLISHER, CREATE_SUBSCRIPTION, CREATE_SERVICE, CREATE_CLIENT
-            obj.Timer = timer("TimerFcn",callback,"Period",period,"ExecutionMode","fixedRate");
+            t = timer("TimerFcn",callback,"Period",period,"ExecutionMode","fixedRate");
+            obj.Timers{end+1} = t;
+        end
+        function rate = create_rate(obj,frequency)
+            %CREATE_RATE creates a rate object for the node
+            %   R = CREATE_RATE(OBJ,F) attaches a rate object with the 
+            %   given frequency F
+            %
+            %   Example:
+            %       node_talker = rclm_node('/talker');
+            %       rate = node_talker.create_rate(10);
+            %       for i = 1:10
+            %           disp(i)
+            %           rate.sleep;
+            %       end
+            %
+            %   See also RCLM_NODE, CREATE_PUBLISHER, CREATE_SUBSCRIPTION, CREATE_SERVICE, CREATE_CLIENT
+            obj.Rates = Rate(frequency);
+            rate = obj.Rates;
         end
         function srv = create_service(obj,serviec_type,service_name,callback)
             %CREATE_SERVICE creates a service server for a node
@@ -167,7 +247,7 @@ classdef rclm_node < handle
             %           disp("Hello")
             %       end
             %
-            %   See also RCLM_NODE, CREATE_SUBSCRIPTION, CREATE_TIMER, CREATE_SERVICE, CREATE_CLIENT
+            %   See also CREATE_SUBSCRIPTION, CREATE_TIMER, CREATE_CLIENT
             srv = ros2svcserver(obj.ThisNode,service_name,serviec_type,callback);
             obj.Service_servers{end+1} = srv;
         end
@@ -195,11 +275,10 @@ classdef rclm_node < handle
             %           disp("Hello")
             %       end
             %
-            %   See also RCLM_NODE, CREATE_SUBSCRIPTION, CREATE_TIMER, CREATE_SERVICE, CREATE_CLIENT
+            %   See also CREATE_SERVICE, DESTROY_CLIENT
             cli = ros2svcclient(obj.ThisNode,service_name,service_type);
             obj.Service_clients{end+1} = cli;
         end
-
         function guard = create_guard_condition(obj,guard_condition_callback)
             %CREATE_GUARD_CONDITION creates a guard condition for a node
             %   G = CREATE_GUARD_CONDITION(OBJ,CB) returns a guard condition 
@@ -217,9 +296,126 @@ classdef rclm_node < handle
             %       guard = test_node.create_guard_condition(callback);
             %       guard.trigger;
             %       test_node.Guards{1}.trigger
+            %
+            %   See also DESTROY_GUARD_CONDITION
 
             guard = GuardCondition(guard_condition_callback);
             obj.Guards{end+1} = guard; 
+        end
+        function destroy_client(obj,client)
+            %DESTROY_CLIENT desconstructs a given service client from the node
+            %   DESTROY_CLIENT(OBJ,CLI) desconstructs a given service 
+            %   client CLI from the node OBJ and remove it from the server
+            %   client list.
+            %
+            %       controller = TurtlesimController;
+            %       controller.Service_clients
+            %       cli = cli = controller.Service_clients{1};
+            %       controller.destroy_client(cli);
+            %       controller.Service_clients
+            %   
+            %   See also CREATE_CLIENT
+
+            for i = 1:numel(obj.Service_clients)
+                if isequal(client,obj.Service_clients{i})
+                    delete(obj.Service_clients{i})
+                    obj.Service_clients(i) = [];
+                    break;
+                end
+            end
+        end
+        function destroy_guard_condition(obj,guard)
+            %DESTROY_GUARD_CONDITION desconstructs a guard condition from the node
+            %   DESTROY_GUARD_CONDITION(OBJ,G) desconstructs a given guard 
+            %   condition G from the node OBJ and remove it from the guard
+            %   condition list.
+            %
+            %   See also CREATE_GUARD_CONDITION
+
+            for i = 1:numel(obj.Guards)
+                if isequal(guard,obj.Guards{i})
+                    delete(obj.Guards{i})
+                    obj.Guards(i) = [];
+                    break;
+                end
+            end
+        end
+        function destroy_publisher(obj,publisher)
+            %DESTROY_PUBLISHER desconstructs a publisher from the node
+            %   DESTROY_PUBLISHER(OBJ,PUB) desconstructs a given publisher 
+            %   PUB from the node OBJ and remove it from the publisher list.
+            %
+            %   See also CREATE_PUBLISHER
+
+            for i = 1:numel(obj.Publishers)
+                if isequal(publisher,obj.Publishers{i})
+                    delete(obj.Publishers{i})
+                    obj.Publishers(i) = [];
+                    break;
+                end
+            end
+        end
+        function destroy_service(obj,service)
+            %DESTROY_SERVICE desconstructs a service server from the node
+            %   DESTROY_SERVICE(OBJ,SRV) desconstructs a given service
+            %   server SRV from the node OBJ and remove it from the 
+            %   service server list.
+            %
+            %   See also CREATE_SERVICE
+
+            for i = 1:numel(obj.Service_servers)
+                if isequal(service,obj.Service_servers{i})
+                    delete(obj.Service_servers{i})
+                    obj.Service_servers(i) = [];
+                    break;
+                end
+            end
+        end
+        function destroy_subscription(obj,subscription)
+            %DESTROY_SUBSCRIPTION desconstructs a subscriber from the node
+            %   DESTROY_SUBSCRIPTION(OBJ,SUB) desconstructs a given subscriber 
+            %   SUB from the node OBJ and remove it from the subscriber list.
+            %
+            %   See also CREATE_SUBSCRIBER
+
+            for i = 1:numel(obj.Subscribers)
+                if isequal(subscription,obj.Subscribers{i})
+                    delete(obj.Subscribers{i})
+                    obj.Subscribers(i) = [];
+                    break;
+                end
+            end
+        end
+        function destroy_rate(obj,rate)
+            %DESTROY_RATE desconstructs a rate object from the node
+            %   DESTROY_SUBSCRIPTION(OBJ,R) desconstructs a given rate object 
+            %   R from the node OBJ and remove it from the rate list.
+            %
+            %   See also CREATE_RATE
+
+            for i = 1:numel(obj.Rates)
+                if isequal(rate,obj.Rates{i})
+                    delete(obj.Rates{i})
+                    obj.Rates(i) = [];
+                    break;
+                end
+            end
+        end
+        function destroy_timer(obj,t)
+            %DESTROY_TIMER desconstructs a timer from the node
+            %   DESTROY_SUBSCRIPTION(OBJ,TIMER) desconstructs a given timer 
+            %   T from the node OBJ and remove it from the timer list.
+            %
+            %   See also CREATE_TIMER
+
+            for i = 1:numel(obj.Timers)
+                if isequal(t,obj.Timers{i})
+                    stop(obj.Timers{i})
+                    delete(obj.Timers{i})
+                    obj.Timers(i) = [];
+                    break;
+                end
+            end
         end
         function delete(obj)
             %DELETE deconstructs this rclm_node
@@ -228,8 +424,8 @@ classdef rclm_node < handle
             %   Example:
             %       node = rclm_node('/random_pub');
             %       pub = node.create_publisher("geometry_msgs/Twist","/cmd_vel",10);
-            %       node.create_timer(0.5,@(obj,event)timer_callback(obj,event,pub));
-            %       node.start_timer()
+            %       t = node.create_timer(0.5,@(obj,event)timer_callback(obj,event,pub));
+            %       t.start;
             %       delete(node)
             %       isempty(timerfind)
             %       ~ishghandle(node)
@@ -241,78 +437,24 @@ classdef rclm_node < handle
             %       end
             %
 
-            if ~isempty(obj.Timer)
-                stop(obj.Timer);
-                delete(obj.Timer);
+            if ~isempty(obj.Timers)
+                for t = obj.Timers{:}
+                    stop(t);
+                    delete(t)
+                end
             end
             if ~isempty(obj.Guards)
                 for guard = obj.Guards{:}
                     delete(guard)
                 end
             end
+            if ~isempty(obj.Rates)
+                delete(obj.Rates)
+            end
             delete(obj.ThisNode);
             delete@handle(obj);
 
         end
 
-        function start_timer(obj)
-            %START_TIMER starts the timer of the node
-            %   START_TIMER(OBJ) starts timer. However, if timer was not created,
-            %   this will do nothing.
-            %
-            %   Example:
-            %       % Create a timer for a node /talker that
-            %       % publish a random number (1-10) as a "linear.x"
-            %       % component of a topic /cmd_vel every 0.5 seconds.
-            %
-            %       node_talker = rclm_node('/talker');
-            %       pub = node_talker.create_publisher("geometry_msgs/Twist","/cmd_vel",10)
-            %       node_talker.create_timer(0.5,@(obj,event)timer_callback(obj,event,pub));
-            %       node_talker.start_timer();
-            %
-            %       function timer_callback(obj, event, pub)
-            %           msg = ros2message("geometry_msgs/Twist");
-            %           msg.linear.x = randi(10);
-            %           send(pub,msg);
-            %       end
-            %
-            %   See also RCLM_NODE, CREATE_SUBSCRIPTION, CREATE_TIMER, CREATE_SERVICE, CREATE_CLIENT
-            if ~isempty(obj.Timer.TimerFcn)
-                start(obj.Timer);
-            else
-                warning('No timer is set.');
-            end
-
-        end
-        function stop_timer(obj)
-            %STOP_TIMER stop the timer of the node
-            %   STOP_TIMER(OBJ) stop timer. However, if timer was not created,
-            %   this will do nothing.
-            %
-            %   Example:
-            %       % Create a timer for a node /talker that
-            %       % publish a random number (1-10) as a "linear.x"
-            %       % component of a topic /cmd_vel every 0.5 seconds.
-            %
-            %       node_talker = rclm_node('/talker');
-            %       pub = node_talker.create_publisher("geometry_msgs/Twist","/cmd_vel",10)
-            %       node_talker.create_timer(0.5,@(obj,event)timer_callback(obj,event,pub));
-            %       node_talker.start_timer();
-            %       node_talker.stop_timer();
-            %
-            %       function timer_callback(obj, event, pub)
-            %           msg = ros2message("geometry_msgs/Twist");
-            %           msg.linear.x = randi(10);
-            %           send(pub,msg);
-            %       end
-            %
-            %   See also RCLM_NODE, CREATE_SUBSCRIPTION, CREATE_TIMER, CREATE_SERVICE, CREATE_CLIENT
-            if ~isempty(obj.Timer.TimerFcn)
-                stop(obj.Timer);
-            else
-                warning('No timer is set.');
-            end
-
-        end
     end
 end
